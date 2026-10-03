@@ -1,0 +1,14 @@
+{
+  "name": "YRAL Cafe — Good Food. Bright Mood.",
+  "short_name": "YRAL Cafe",
+  "description": "Gelatos, coffees and an all-day eatery in Hyderabad. Explore the full YRAL menu, gallery and reserve a table.",
+  "start_url": "index.html",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#0a0908",
+  "theme_color": "#0a0908",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "images/yral-logo.jpg", "sizes": "512x512", "type": "image/jpeg", "purpose": "any" }
+  ]
+}

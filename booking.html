@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reserve a Table — YRAL Cafe</title>
+<meta name="description" content="Check live table availability and reserve your table at YRAL Cafe in a few taps.">
+<meta name="robots" content="noindex,follow">
+<meta name="theme-color" content="#0a0908">
+<link rel="icon" href="images/yral-logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/booking.css">
+
+<!-- Razorpay Checkout — client-side. See README for production requirements
+     (server-side order creation + signature verification). -->
+<script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
+<!-- Google Identity Services — for "Continue with Google" -->
+<script src="https://accounts.google.com/gsi/client" defer></script>
+</head>
+<body data-theme="dark">
+
+<div class="bg-mesh" aria-hidden="true">
+  <span class="blob blob-1"></span>
+  <span class="blob blob-2"></span>
+  <span class="blob blob-3"></span>
+</div>
+
+<div class="toast-region" id="toastRegion" role="status" aria-live="polite"></div>
+
+<main class="booking-shell">
+  <div class="container" style="max-width:760px;">
+    <div class="booking-header">
+      <a href="index.html" class="brand">
+        <span class="brand-mark"><img src="images/yral-logo.jpg" alt="YRAL Cafe"></span>
+        <span>YRAL <span style="color:var(--text-dim);font-weight:500;">· Reserve a Table</span></span>
+      </a>
+      <div style="display:flex;gap:.5rem;align-items:center;">
+        <button class="theme-switch" id="themeSwitch" type="button" aria-label="Toggle theme" aria-pressed="false">
+          <span class="knob"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>
+        </button>
+        <a href="index.html" class="btn-icon" aria-label="Close and return to site">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </a>
+      </div>
+    </div>
+
+    <div class="stepper" id="stepper" aria-label="Booking progress">
+      <div class="step-pip active" data-step-pip="1"><span class="num">1</span>Login</div>
+      <div class="step-connector"></div>
+      <div class="step-pip" data-step-pip="2"><span class="num">2</span>Date &amp; Guests</div>
+      <div class="step-connector"></div>
+      <div class="step-pip" data-step-pip="3"><span class="num">3</span>Availability</div>
+      <div class="step-connector"></div>
+      <div class="step-pip" data-step-pip="4"><span class="num">4</span>Summary</div>
+      <div class="step-connector"></div>
+      <div class="step-pip" data-step-pip="5"><span class="num">5</span>Payment</div>
+      <div class="step-connector"></div>
+      <div class="step-pip" data-step-pip="6"><span class="num">6</span>Done</div>
+    </div>
+
+    <div class="glass-card booking-card">
+
+      <!-- STEP 1 — LOGIN -->
+      <section class="step-panel active" data-step="1" aria-labelledby="step1Title">
+        <h2 class="step-title" id="step1Title">Sign in to book</h2>
+        <p class="step-sub">Use your mobile number or continue with Google. We only use this to send your booking confirmation.</p>
+
+        <div class="login-tabs" role="tablist">
+          <button type="button" class="active" data-login-tab="mobile" role="tab" aria-selected="true">Mobile Number</button>
+          <button type="button" data-login-tab="google" role="tab" aria-selected="false">Google</button>
+        </div>
+
+        <div class="login-panel active" data-login-panel="mobile">
+          <div class="otp-note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            <span><strong>Demo mode:</strong> this OTP flow is simulated for preview. A production launch needs an SMS provider (e.g. Twilio / MSG91) wired to a backend — see the note in the footer of this page.</span>
+          </div>
+          <div class="form-field" id="fld-mobile">
+            <label for="mobileInput">Mobile number</label>
+            <input type="tel" id="mobileInput" inputmode="numeric" placeholder="98765 43210" maxlength="10" autocomplete="tel">
+            <p class="field-error">Enter a valid 10-digit mobile number.</p>
+          </div>
+          <button class="btn btn-primary btn-full" id="sendOtpBtn" type="button">
+            <span class="spinner" aria-hidden="true"></span>
+            <span class="btn-label">Send OTP</span>
+          </button>
+
+          <div id="otpStage" style="display:none;margin-top:1.4rem;">
+            <label style="display:block;font-size:.82rem;font-weight:600;margin-bottom:.6rem;color:var(--text-dim);">Enter the 4-digit code sent to <span id="otpPhoneEcho" style="color:var(--text);"></span></label>
+            <div class="otp-inputs" id="otpInputs">
+              <input type="text" inputmode="numeric" maxlength="1" aria-label="OTP digit 1">
+              <input type="text" inputmode="numeric" maxlength="1" aria-label="OTP digit 2">
+              <input type="text" inputmode="numeric" maxlength="1" aria-label="OTP digit 3">
+              <input type="text" inputmode="numeric" maxlength="1" aria-label="OTP digit 4">
+            </div>
+            <p class="field-error" id="otpError" style="display:none;">Incorrect code. Demo code is shown in the toast — try again.</p>
+            <div class="resend-row">
+              <span id="resendTimer">Resend code in 30s</span>
+              <button type="button" id="resendBtn" disabled>Resend OTP</button>
+            </div>
+            <button class="btn btn-primary btn-full" id="verifyOtpBtn" type="button" style="margin-top:1.2rem;">
+              <span class="spinner" aria-hidden="true"></span>
+              <span class="btn-label">Verify &amp; Continue</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="login-panel" data-login-panel="google">
+          <div class="otp-note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            <span>Google sign-in requires a Google Cloud OAuth Client ID (free to create). Until one is configured for this domain, use the demo button below to simulate a Google login.</span>
+          </div>
+          <div id="googleBtnMount" style="margin-bottom:1rem;"></div>
+          <button class="google-btn" id="googleDemoBtn" type="button">
+            <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.67-2.26 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1A6.6 6.6 0 0 1 5.5 12c0-.73.12-1.44.34-2.1V7.06H2.18A11 11 0 0 0 1 12c0 1.77.42 3.45 1.18 4.94l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1a11 11 0 0 0-9.82 6.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z"/></svg>
+            <span class="btn-label">Continue with Google (demo)</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- STEP 2 — DATE, TIME, GUESTS -->
+      <section class="step-panel" data-step="2" aria-labelledby="step2Title">
+        <h2 class="step-title" id="step2Title">When are you visiting?</h2>
+        <p class="step-sub">Pick a date, time slot and party size — we'll check live availability against our 9 tables.</p>
+
+        <div class="form-field" id="fld-bookdate">
+          <label for="bookDate">Date</label>
+          <input type="date" id="bookDate">
+          <p class="field-error">Please choose a valid upcoming date.</p>
+        </div>
+
+        <label style="display:block;font-size:.82rem;font-weight:600;margin:1.2rem 0 .6rem;color:var(--text-dim);">Time slot</label>
+        <div class="slot-grid" id="slotGrid"></div>
+        <p class="field-error" id="slotError" style="display:none;margin-bottom:1rem;">Please select a time slot.</p>
+
+        <label style="display:block;font-size:.82rem;font-weight:600;margin:1.4rem 0 .6rem;color:var(--text-dim);">Number of guests</label>
+        <div class="guests-control">
+          <button type="button" id="guestMinus" aria-label="Decrease guests">−</button>
+          <span class="guests-count" id="guestCount">2</span>
+          <button type="button" id="guestPlus" aria-label="Increase guests">+</button>
+        </div>
+        <p class="guests-hint">Up to 12 guests can be booked online (2 tables combined). For 13+, please call us.</p>
+        <div class="call-banner" id="largePartyBanner" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6.4 6.4l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2Z"/></svg>
+          <span>For groups of 13 or more, please call us at <a href="tel:+914012345678" style="color:var(--accent);font-weight:600;">+91 40 1234 5678</a> so our team can arrange seating.</span>
+        </div>
+
+        <div class="step-actions">
+          <button class="btn btn-glass" data-goto-step="1" type="button">Back</button>
+          <button class="btn btn-primary" id="toAvailabilityBtn" type="button">Check Availability</button>
+        </div>
+      </section>
+
+      <!-- STEP 3 — AVAILABILITY -->
+      <section class="step-panel" data-step="3" aria-labelledby="step3Title">
+        <h2 class="step-title" id="step3Title">Checking availability…</h2>
+        <p class="step-sub">Matching your party size against our live table map.</p>
+
+        <div class="avail-loading" id="availLoading">
+          <div class="ring"></div>
+          <span>Matching tables for your slot…</span>
+        </div>
+
+        <div class="avail-result" id="availOk">
+          <div class="avail-ok">
+            <div class="table-pick" id="tablePickList"></div>
+            <p style="font-size:.85rem;color:var(--text-dim);">Great news — we found a table for you. Continue to review your booking summary.</p>
+          </div>
+          <div class="step-actions">
+            <button class="btn btn-glass" data-goto-step="2" type="button">Back</button>
+            <button class="btn btn-primary" data-goto-step="4" type="button">Continue to Summary</button>
+          </div>
+        </div>
+
+        <div class="avail-result" id="availFail">
+          <div class="avail-fail">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            <h3 style="font-size:1.05rem;">No tables free at this exact slot</h3>
+            <p id="availFailMsg" style="font-size:.87rem;">All matching tables are booked for this time. Try one of these nearby slots:</p>
+            <div class="alt-slots" id="altSlots"></div>
+          </div>
+          <div class="step-actions">
+            <button class="btn btn-glass" data-goto-step="2" type="button">Change Date / Time</button>
+            <a class="btn btn-primary" href="tel:+914012345678">Call the Cafe</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 4 — SUMMARY -->
+      <section class="step-panel" data-step="4" aria-labelledby="step4Title">
+        <h2 class="step-title" id="step4Title">Review your booking</h2>
+        <p class="step-sub">Please confirm the details below before paying the confirmation fee.</p>
+
+        <div class="summary-list" id="summaryList"></div>
+
+        <div class="form-field" id="fld-guestname">
+          <label for="guestName">Name for the reservation</label>
+          <input type="text" id="guestName" autocomplete="name">
+          <p class="field-error">Please enter a name.</p>
+        </div>
+        <div class="form-field" id="fld-guestnotes">
+          <label for="guestNotes">Special requests (optional)</label>
+          <textarea id="guestNotes" placeholder="Window seat, birthday, allergies…"></textarea>
+        </div>
+
+        <div class="step-actions">
+          <button class="btn btn-glass" data-goto-step="3" type="button">Back</button>
+          <button class="btn btn-primary" data-goto-step="5" id="toPaymentBtn" type="button">Continue to Payment</button>
+        </div>
+      </section>
+
+      <!-- STEP 5 — PAYMENT -->
+      <section class="step-panel" data-step="5" aria-labelledby="step5Title">
+        <h2 class="step-title" id="step5Title">Confirm with a small token fee</h2>
+        <p class="step-sub">A nominal confirmation fee secures your table. It's adjusted against your final bill.</p>
+
+        <div class="demo-pay-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+          <span><strong>Sandbox note:</strong> this uses Razorpay's real Checkout.js with a placeholder test key. Replace <code>RAZORPAY_KEY_ID</code> in <code>js/booking.js</code> with your live key to accept real payments — see README for the backend requirement (order creation + signature verification).</span>
+        </div>
+
+        <div class="summary-list">
+          <div class="summary-row"><span>Confirmation fee</span><span id="feeAmountLabel">₹79</span></div>
+        </div>
+
+        <button class="btn btn-primary btn-full" id="payNowBtn" type="button">
+          <span class="spinner" aria-hidden="true"></span>
+          <span class="btn-label">Pay &amp; Confirm Booking</span>
+        </button>
+        <div class="step-actions">
+          <button class="btn btn-glass btn-full" data-goto-step="4" type="button">Back</button>
+        </div>
+      </section>
+
+      <!-- STEP 6 — CONFIRMATION -->
+      <section class="step-panel" data-step="6" aria-labelledby="step6Title">
+        <div class="confirm-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        </div>
+        <h2 class="step-title" id="step6Title" style="text-align:center;">Table Reserved!</h2>
+        <p class="step-sub" style="text-align:center;">Your booking is confirmed. We've noted your details below.</p>
+        <p class="booking-ref" id="confirmRef"></p>
+        <div class="summary-list" id="confirmSummary"></div>
+        <div class="step-actions">
+          <a class="btn btn-glass btn-full" href="index.html">Back to Home</a>
+          <button class="btn btn-primary btn-full" id="newBookingBtn" type="button">Make Another Booking</button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</main>
+
+<script src="js/table-api.js"></script>
+<script src="js/booking-logic.js"></script>
+<script src="js/booking.js"></script>
+</body>
+</html>
